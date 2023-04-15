@@ -1,6 +1,6 @@
 "use strict";
 
-import {GameScene as GameScene} from './game.js';
+import {GameScene as GameScene, PreLoader as PreLoader, MainMenu as MainMenu} from './game.js';
 import {UIScene as UIScene} from './UI.js';
 var config = {
     type: Phaser.AUTO,
@@ -12,7 +12,7 @@ var config = {
             gravity: { y: 200 }
         }
     },
-    scene: [ GameScene, UIScene ]
+    scene: [ PreLoader,MainMenu,GameScene, UIScene ]
 };
 
 var game = new Phaser.Game(config);
