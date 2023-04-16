@@ -1,4 +1,5 @@
 "use strict";
+import {Const as Const} from './const.js';
 class UIScene extends Phaser.Scene{
     constructor (){
         super({ key: 'UIScene', active: false });
