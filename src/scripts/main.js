@@ -10,6 +10,7 @@ var config = {
     physics: {
         default: 'arcade',
         arcade: {
+            debug: true,    //draw physics debug
             gravity: { y: Const.gravity }
         }
     },

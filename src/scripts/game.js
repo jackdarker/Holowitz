@@ -50,23 +50,44 @@ class MainMenu extends Phaser.Scene {
     }
 }
 class Player extends Phaser.Physics.Arcade.Sprite{//Phaser.GameObjects.Sprite {
-    constructor (game,x,y) {
-        super(game,x, y, 'dude');
-        game.physics.add.existing(this);
-        game.physics.world.enable(this);
-        //this=game.physics.add.sprite(x, y, 'dude');
+    constructor (scene,x,y) {
+        super(scene,x, y, 'hero');
+        this.scene=scene;
+        scene.physics.add.existing(this);
+        scene.physics.world.enable(this);
+        //this=scene.physics.add.sprite(x, y, 'dude');
         this.onLadder = false;
-        //this.player.setBounce(0.2);
+        this.setScale(2); //scale sprite & bounding box
+        this.body.setSize(2*10, 2*20);
+        this.body.setOffset(this.body.offset.x+2*-2, this.body.offset.y+2*-1);
+        //this.body.setBounce(0.2);
         this.body.setGravityY(300)
+        this.anims.play('idle'); //bounding box is calculated by constructor but we can change graphics here
         this.addToDisplayList() //TODO why is this not automatically added
     }
     update(){
         super.update();
+        if (this.scene.cursors.left.isDown) {
+            this.setVelocityX(-160);
+            this.flipX = true;
+            this.anims.play('right', true);
+        }else if (this.scene.cursors.right.isDown) {
+            this.setVelocityX(160);
+            this.flipX = false;
+            this.anims.play('right', true);
+        } else {
+            this.setVelocityX(0);
+            this.anims.play('idle');
+        }
+
+        if (this.scene.cursors.up.isDown && (this.body.blocked.down || this.body.touching.down)) { //tiles are chedked with blocked while other bodys cause touching??
+            this.setVelocityY(-330);
+        }
         if (this.onLadder) {
             this.body.gravity.y = 0;
-            } else {
+        } else {
             this.body.gravity.y = 300;
-            }
+        }
             this.onLadder = false;
     }
 
@@ -88,11 +109,13 @@ class GameScene extends Phaser.Scene
         this.load.spritesheet('hero', 'assets/Warrior/SpriteSheet/Warrior_SheetnoEffect.png', { frameWidth: 69, frameHeight: 44 });
 
         this.load.image('kenny_platformer_64x64', 'assets/atlas/kenny_platformer_64x64.png');
-        this.load.tilemapTiledJSON('multiple-layers-map', 'assets/maps/multiple-layers.json');
+        this.load.tilemapTiledJSON('multiple-layers-map', 'assets/maps/multiple-layers.json');//'assets/maps/tileset-collision-property-v12.json');
+
+        this.load.atlas('atlas', 'assets/Warrior/export/texture.png', 'assets/Warrior/export/texture.json');
     }
     setupAnims(){
         var a=0,b=0;
-        {//dude
+        if(false){//dude
             this.anims.create({
                 key: 'left',
                 frames: this.anims.generateFrameNumbers('dude', { start: 0, end: 3 }),
@@ -100,7 +123,7 @@ class GameScene extends Phaser.Scene
                 repeat: -1
             });
             this.anims.create({
-                key: 'turn',
+                key: 'idle',
                 frames: [ { key: 'dude', frame: 4 } ],
                 frameRate: 20
             });
@@ -110,8 +133,8 @@ class GameScene extends Phaser.Scene
                 frameRate: 10,
                 repeat: -1
             });
-        }
-        /*{//hero
+        } else
+        {//hero
             a=0,b=6;
             this.anims.create({
                 key: 'idle',
@@ -218,7 +241,7 @@ class GameScene extends Phaser.Scene
                 frameRate: 10,
                 repeat: -1
             });
-        }*/
+        }
     }
     create () {
         this.cursors = this.input.keyboard.createCursorKeys();
@@ -240,15 +263,17 @@ class GameScene extends Phaser.Scene
         }*/
         this.map = this.make.tilemap({ key: 'multiple-layers-map' });
         const tiles = this.map.addTilesetImage('kenny_platformer_64x64');
+        var offsetX=64*-8,offsetY=64*-8;
+        this.rockLayer = this.map.createLayer('Rock Layer', tiles,offsetX,offsetY);
+        this.waterLayer = this.map.createLayer('Water Layer', tiles,offsetX,offsetY);
+        this.platformLayer = this.map.createLayer('Platform Layer', tiles,offsetX,offsetY);
+        this.stuffLayer = this.map.createLayer('Stuff Layer', tiles, offsetX,offsetY);
+        this.platformLayer.setCollisionByProperty({ collides: true }); //collides property has to be set for tile
+        this.rockLayer.setCollisionByProperty({ collides: true }); //
 
-        this.rockLayer = this.map.createLayer('Rock Layer', tiles, 0, 0);
-        this.waterLayer = this.map.createLayer('Water Layer', tiles, 0, 0);
-        this.platformLayer = this.map.createLayer('Platform Layer', tiles, 0, 0);
-        this.stuffLayer = this.map.createLayer('Stuff Layer', tiles, 0, 0);
-        //this.rockLayer.setCollisionByProperty({ collides: true });
-
+        //create a platform from code
         let platforms = this.physics.add.staticGroup();
-        platforms.create(40, 140, 'ground').setScale(2).refreshBody();
+        platforms.create(40, 240, 'ground').setScale(2).refreshBody();
         let stars = this.physics.add.group({
             key: 'star',
             repeat: 11,
@@ -257,31 +282,40 @@ class GameScene extends Phaser.Scene
         stars.children.iterate(function (child) {
             child.setBounceY(Phaser.Math.FloatBetween(0.4, 0.8));
         });
-        platforms.add(this.rockLayer);
-        //this.physics.add.collider(stars, this.rockLayer);
-        this.physics.add.collider(stars, platforms);
-        //this.setupAnims();
-        this.anims.create({
-            key: 'left',
-            frames: this.anims.generateFrameNumbers('dude', { start: 0, end: 3 }),
-            frameRate: 10,
-            repeat: -1
-        });
-        this.anims.create({
-            key: 'turn',
-            frames: [ { key: 'dude', frame: 4 } ],
-            frameRate: 20
-        });
-        this.anims.create({
-            key: 'right',
-            frames: this.anims.generateFrameNumbers('dude', { start: 5, end: 8 }),
-            frameRate: 10,
-            repeat: -1
-        });
-        this.player = new Player(this,0,0); //this.physics.add.sprite(0, 0, 'dude');// 
         
+        this.setupAnims();
+        const t1 = this.textures.addSpriteSheetFromAtlas(
+            'region_',
+            {
+                atlas: 'atlas',
+                frame: 'region_0',
+                frameWidth: 69,
+                frameHeight: 44,
+                endFrame: 5
+            });
+        //this.anims.create({key: 'explode1',
+        //    frames: this.anims.generateFrameNumbers('region_', { start: 0, end: 5}),
+        //    frameRate: 10,
+        //    repeat: -1
+        //});
+        this.anims.create({
+            key: 'explode1',
+            frameRate: 10,repeat: -1,
+            frames: this.anims.generateFrameNames('atlas', {
+              prefix: 'region_',
+              start:0,end: 100
+              //,zeroPad: 4
+            })
+          });
+        //this.anims.add('explode1', Phaser.Animation.generateFrameNames('region_', 1, 4, '', 0), 10, true);
+        this.add.sprite(0, 0).play('explode1');
+
+
+        this.player = new Player(this,0,0); //this.physics.add.sprite(0, 0, 'dude');// 
+        this.physics.add.collider(stars, [platforms,this.platformLayer,this.rockLayer]);
         this.player.setCollideWorldBounds(true); //disallow to leave world bounds
-        this.physics.add.collider(this.player, platforms);
+        this.physics.add.collider(this.player, [platforms,this.platformLayer,this.rockLayer]);
+        this.physics.add.overlap(this.player, stars, this.collectStar, null, this);
         this.cameras.main.startFollow(this.player, true);
 
         const combo2 = this.input.keyboard.createCombo('TZU',{resetOnMatch:true}); //triggers when keys are pressed in order - usable for combos?
@@ -300,24 +334,10 @@ class GameScene extends Phaser.Scene
         }, this);*/
         this.input.on('gameobjectup', this.clickHandler, this);
         
-        this.physics.add.overlap(this.player, stars, this.collectStar, null, this);
     }
 
     update(){
-        if (this.cursors.left.isDown) {
-            this.player.setVelocityX(-160);
-            this.player.anims.play('left', true);
-        }else if (this.cursors.right.isDown) {
-            this.player.setVelocityX(160);
-            this.player.anims.play('right', true);
-        } else {
-            this.player.setVelocityX(0);
-            this.player.anims.play('turn');
-        }
-
-        if (this.cursors.up.isDown && this.player.body.touching.down) { //jump
-            this.player.setVelocityY(-330);
-        }
+        this.player.update();
         //this.player.setVelocity(0);  dont zero Y or gravity will not work
         /* if not using gravity....
         if (this.cursors.up.isDown)
